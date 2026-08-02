@@ -303,24 +303,28 @@ class AutoBattle @Inject constructor(
         )
 
     private fun clickStoryQuestBanner(markers: List<Match>, useAlt: Boolean = false) {
-        // Banner "下一个" sits on the left crest; the tappable strip is to the right.
         val arrow = markers.minByOrNull { it.region.center.y }
             ?: markers.maxByOrNull { it.score }
-            ?: return
-        val offset = if (useAlt) {
-            locations.storyBannerClickOffsetAlt
+
+        val click = if (arrow != null) {
+            // Chevron on left crest → blue strip is to the right / slightly above.
+            val offset = if (useAlt) {
+                locations.storyBannerClickOffsetAlt
+            } else {
+                locations.storyBannerClickOffset
+            }
+            val raw = arrow.region.center + offset
+            Location(raw.x.coerceIn(80, 2480), raw.y.coerceIn(80, 1360))
+        } else if (useAlt) {
+            // No chevron (FX washed it out) — hit the known banner body.
+            locations.storyQuestBannerClickAlt
         } else {
-            locations.storyBannerClickOffset
+            locations.storyQuestBannerClick
         }
-        val raw = arrow.region.center + offset
-        // Keep click inside script space (2560x1440).
-        val click = Location(
-            raw.x.coerceIn(80, 2480),
-            raw.y.coerceIn(80, 1360)
-        )
+
         println(
-            "FGA storyNext: click banner next=${arrow.region.center} " +
-                "score=${arrow.score} click=$click alt=$useAlt"
+            "FGA storyNext: click banner " +
+                "arrow=${arrow?.region?.center} score=${arrow?.score} click=$click alt=$useAlt"
         )
         click.click()
     }
@@ -349,14 +353,8 @@ class AutoBattle @Inject constructor(
             }
             0.5.seconds.wait()
             ticks++
-            if (ticks == 3 && isStoryQuestDetailOpen()) {
-                clickStoryQuestBanner(findStoryNextMarkers())
-            }
-            if (ticks == 7 && isStoryQuestDetailOpen()) {
-                clickStoryQuestBanner(findStoryNextMarkers(), useAlt = true)
-            }
-            if (ticks == 11 && isStoryQuestDetailOpen()) {
-                clickStoryQuestBanner(findStoryNextMarkers(), useAlt = true)
+            if (ticks in listOf(3, 7, 11) && isStoryQuestDetailOpen()) {
+                clickStoryQuestBanner(findStoryNextMarkers(), useAlt = ticks >= 7)
             }
         }
         println("FGA storyNext: still on quest detail after banner clicks")

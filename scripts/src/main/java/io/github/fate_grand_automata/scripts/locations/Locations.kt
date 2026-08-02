@@ -73,6 +73,17 @@ class Locations @Inject constructor(
     val storyNextMaxY = 1000
 
     /**
+     * Center of the blue story quest info strip (when 关闭 is shown).
+     * Used when the "下一个" chevron is washed out by scene FX.
+     */
+    val storyQuestBannerClick = Location(490, 340).xFromCenter()
+
+    /**
+     * Slightly lower/left alternate on the same strip.
+     */
+    val storyQuestBannerClickAlt = Location(350, 380).xFromCenter()
+
+    /**
      * Top-left "关闭" when a story node detail panel is open.
      */
     val storyQuestCloseRegion = Region(0, 0, 280, 120)
