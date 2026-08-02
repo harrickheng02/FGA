@@ -16,7 +16,38 @@ enum class Images(val path: String) {
     LimitBroken("limitbroken.png"),
     SupportScreen("support_screen.png"),
     SupportConfirmSetupButton("support_region_tool.png"),
+    /**
+     * All (star) class filter. Kept for assets; shift detection uses [SupportClassRecommended].
+     */
+    SupportClassAll("support_class_all.png"),
+    /**
+     * "Recommended" class filter on story/main quest support screens.
+     * Matched only in the first class-filter slot to decide +1 icon X shift.
+     */
+    SupportClassRecommended("support_class_recommended.png"),
     StorySkip("storyskip.png"),
+    /**
+     * Yellow downward chevron under the bouncing "下一个" marker on story maps.
+     * More stable than the text when scene FX wash out the label.
+     */
+    StoryNext("story_next.png"),
+    /**
+     * Same chevron under heavy scene FX (e.g. sandstorm glow).
+     */
+    StoryNextArrow("story_next_arrow.png"),
+    /**
+     * Top-left "关闭" on story quest detail panel (node selected).
+     */
+    StoryQuestClose("story_quest_close.png"),
+    /**
+     * Glowing blue story-map node icon under "下一个".
+     */
+    StoryNode("story_node.png"),
+    /**
+     * Generic FGO two-button confirm dialog watermark ("confirmation").
+     * Content-agnostic — any pre-quest popup with this chrome.
+     */
+    QuestConfirmDialog("story_quest_confirm.png"),
     Menu("menu.png"),
     Stamina("stamina.png"),
     Result("result.png"),
@@ -90,6 +121,10 @@ enum class Images(val path: String) {
     Execute("execute.png"),
     SupportBlankCE("support_blank_ce.png"),
     StartQuest("start_quest.png"),
+    /**
+     * Top-right "队伍确认" / Formation title on the party confirmation screen.
+     */
+    PartyConfirmation("party_confirmation.png"),
     StateON("state_on.png"),
     GrandCeLabel("grand_ce_label.png"),
     BondCeEffectDefault("bond_ce_effect_default.png"),

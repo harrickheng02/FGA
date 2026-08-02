@@ -20,6 +20,7 @@ import io.github.fate_grand_automata.scripts.modules.Withdraw
 import io.github.fate_grand_automata.scripts.prefs.IPreferences
 import io.github.lib_automata.EntryPoint
 import io.github.lib_automata.ExitManager
+import io.github.lib_automata.Location
 import io.github.lib_automata.Match
 import io.github.lib_automata.ScriptAbortException
 import io.github.lib_automata.dagger.ScriptScope
@@ -181,6 +182,10 @@ class AutoBattle @Inject constructor(
                 isInBattle = true
                 battle.performBattle()
             },
+            // Must run before menu(): dialog sits on the map so menu.png still matches.
+            { isQuestConfirmDialog() } to { confirmQuestDialog() },
+            // Popup may interrupt startQuest(); keep pressing Start while still here.
+            { isInPartyConfirmation() } to { resumePartyConfirmation() },
             { isInMenu() } to { menu() },
             { isStartingNp() } to { skipNp() },
             { isInBondScreen() } to { handleBondScreen() },
@@ -202,6 +207,7 @@ class AutoBattle @Inject constructor(
         )
 
         // Loop through SCREENS until a Validator returns true
+        var idleLoops = 0
         while (true) {
             val actor = useSameSnapIn {
                 screens
@@ -211,7 +217,19 @@ class AutoBattle @Inject constructor(
                     .firstOrNull()
             }
 
-            actor?.invoke()
+            if (actor != null) {
+                idleLoops = 0
+                actor.invoke()
+            } else {
+                // Story "获得报酬 / 请点击游戏界面" and similar tap-to-continue
+                // screens often lack a matching template; dismiss with a center tap.
+                idleLoops++
+                if (idleLoops >= 6) {
+                    println("FGA idle fallback: center click")
+                    locations.middleOfScreenClick.click()
+                    idleLoops = 0
+                }
+            }
 
             0.5.seconds.wait()
         }
@@ -239,9 +257,169 @@ class AutoBattle @Inject constructor(
 
         showRefillsAndRunsMessage()
 
-        // Click uppermost quest
-        locations.menuSelectQuestClick.click()
+        // Story map / quest detail panel
+        val storyMarkers = findStoryNextMarkers()
+        if (isStoryQuestDetailOpen() || storyMarkers.isNotEmpty()) {
+            openStoryMapNode(storyMarkers)
+        } else {
+            locations.menuSelectQuestClick.click()
+            afterSelectingQuest()
+        }
+    }
 
+    /**
+     * Match the yellow chevron under "下一个".
+     * High similarity only — low thresholds matched menu chrome and FX sparks.
+     */
+    private fun findStoryNextMarkers(): List<Match> {
+        val similarity = 0.75
+        val primary = locations.storyMapRegion
+            .findAll(images[Images.StoryNext], similarity = similarity)
+            .toList()
+        val alt = locations.storyMapRegion
+            .findAll(images[Images.StoryNextArrow], similarity = similarity)
+            .toList()
+        val merged = mutableListOf<Match>()
+        for (m in (primary + alt).sortedByDescending { it.score }) {
+            if (m.region.center.y !in 100..locations.storyNextMaxY) {
+                continue
+            }
+            val near = merged.any {
+                kotlin.math.abs(it.region.center.x - m.region.center.x) < 80 &&
+                    kotlin.math.abs(it.region.center.y - m.region.center.y) < 80
+            }
+            if (!near) {
+                merged.add(m)
+            }
+        }
+        return merged
+    }
+
+    /** Story node selected — top-left becomes 关闭 instead of 管理室. */
+    private fun isStoryQuestDetailOpen() =
+        locations.storyQuestCloseRegion.exists(
+            images[Images.StoryQuestClose],
+            similarity = 0.7
+        )
+
+    private fun clickStoryQuestBanner(markers: List<Match>, useAlt: Boolean = false) {
+        // Banner "下一个" sits on the left crest; the tappable strip is to the right.
+        val arrow = markers.minByOrNull { it.region.center.y }
+            ?: markers.maxByOrNull { it.score }
+            ?: return
+        val offset = if (useAlt) {
+            locations.storyBannerClickOffsetAlt
+        } else {
+            locations.storyBannerClickOffset
+        }
+        val raw = arrow.region.center + offset
+        // Keep click inside script space (2560x1440).
+        val click = Location(
+            raw.x.coerceIn(80, 2480),
+            raw.y.coerceIn(80, 1360)
+        )
+        println(
+            "FGA storyNext: click banner next=${arrow.region.center} " +
+                "score=${arrow.score} click=$click alt=$useAlt"
+        )
+        click.click()
+    }
+
+    /**
+     * After opening the quest panel, the banner still shows "下一个" — do not
+     * treat that as "still on map" and keep map-node clicking.
+     */
+    private fun waitLeaveStoryMap() {
+        var ticks = 0
+        while (ticks < 14) {
+            if (isQuestConfirmDialog()) {
+                confirmQuestDialog()
+                return
+            }
+            if (isInPartyConfirmation()) {
+                resumePartyConfirmation()
+                return
+            }
+            if (isInSupport()) {
+                return
+            }
+            if (!isInMenu()) {
+                afterSelectingQuest()
+                return
+            }
+            0.5.seconds.wait()
+            ticks++
+            if (ticks == 3 && isStoryQuestDetailOpen()) {
+                clickStoryQuestBanner(findStoryNextMarkers())
+            }
+            if (ticks == 7 && isStoryQuestDetailOpen()) {
+                clickStoryQuestBanner(findStoryNextMarkers(), useAlt = true)
+            }
+            if (ticks == 11 && isStoryQuestDetailOpen()) {
+                clickStoryQuestBanner(findStoryNextMarkers(), useAlt = true)
+            }
+        }
+        println("FGA storyNext: still on quest detail after banner clicks")
+    }
+
+    /**
+     * CN story map: select node → quest detail banner → enter quest.
+     * Detail panel keeps a "下一个" chevron; that must open the banner, not re-click the map.
+     */
+    private fun openStoryMapNode(markers: List<Match>) {
+        if (isStoryQuestDetailOpen()) {
+            println("FGA storyNext: quest detail already open")
+            clickStoryQuestBanner(markers.ifEmpty { findStoryNextMarkers() })
+            waitLeaveStoryMap()
+            return
+        }
+
+        if (markers.isEmpty()) {
+            return
+        }
+
+        // Map mode: strongest chevron → node under it
+        val nodeMarker = markers.maxBy { it.score }
+        val nodeClick = nodeMarker.region.center + locations.storyNextClickOffset
+        println(
+            "FGA storyNext: select node next=${nodeMarker.region.center} " +
+                "score=${nodeMarker.score} click=$nodeClick"
+        )
+        nodeClick.click()
+        1.seconds.wait()
+
+        if (isQuestConfirmDialog()) {
+            confirmQuestDialog()
+            return
+        }
+
+        if (isStoryQuestDetailOpen()) {
+            clickStoryQuestBanner(findStoryNextMarkers())
+            waitLeaveStoryMap()
+            return
+        }
+
+        // Banner may have opened without 关闭 detected — try topmost chevron once
+        val after = findStoryNextMarkers()
+        if (after.isNotEmpty()) {
+            clickStoryQuestBanner(after)
+            waitLeaveStoryMap()
+        } else {
+            println("FGA storyNext: node click did not open detail")
+        }
+    }
+
+    /** Any FGO two-button confirm dialog (watermark "confirmation"). */
+    private fun isQuestConfirmDialog() =
+        locations.questConfirmDialogRegion.exists(
+            images[Images.QuestConfirmDialog],
+            similarity = 0.7
+        )
+
+    /** Always click the second (right) button. */
+    private fun confirmQuestDialog() {
+        println("FGA questConfirm: click 2nd button")
+        locations.questConfirmDialogSecondButtonClick.click()
         afterSelectingQuest()
     }
 
@@ -417,14 +595,15 @@ class AutoBattle @Inject constructor(
      * Handles the quest rewards screen.
      */
     private fun questReward() {
+        // Dismiss "请点击游戏界面" / first-clear reward popup first.
+        locations.middleOfScreenClick.click()
+
         if (prefs.stopOnFirstClearRewards) {
             // Count the current run
             state.nextRun()
 
             throw BattleExitException(ExitReason.FirstClearRewards)
         }
-
-        locations.resultClick.click()
     }
 
     // Selections Support option
@@ -495,6 +674,24 @@ class AutoBattle @Inject constructor(
 
         2.seconds.wait()
 
+        useBoostItem()
+        storySkipPossible = true
+    }
+
+    private fun isInPartyConfirmation() =
+        locations.partyConfirmationRegion.exists(
+            images[Images.PartyConfirmation],
+            similarity = 0.7
+        )
+
+    /**
+     * If a popup interrupted [startQuest], we remain on 队伍确认 — keep hitting
+     * the bottom-right 战斗开始 until the screen advances.
+     */
+    private fun resumePartyConfirmation() {
+        println("FGA partyConfirm: click battle start")
+        locations.menuStartQuestClick.click()
+        1.seconds.wait()
         useBoostItem()
         storySkipPossible = true
     }

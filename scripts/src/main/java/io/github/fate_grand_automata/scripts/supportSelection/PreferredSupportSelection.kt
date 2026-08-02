@@ -41,20 +41,27 @@ class PreferredSupportSelection @Inject constructor(
                 matched.click()
                 SupportSelectionResult.Done
             } else {
-                var topScrollbar = false
-                var movedSrollBar = false
-                var bottomScrollbar = false
-                useSameSnapIn {
-                    topScrollbar = images[Images.SupportScrollBarTop] in locations.support.topScrollbarRegion
-                    if (!topScrollbar) {
-                        movedSrollBar = images[Images.SupportScrollBarMoved] in locations.support.topScrollbarRegion
-                        bottomScrollbar = images[Images.SupportScrollBarBottom] in
-                                locations.support.bottomScrollbarRegion
-                    }
-                }
+                // Default similarity 0.8 is too strict for the moved thumb (~0.80 miss).
+                val scrollSimilarity = 0.7
+                val topScrollbar = locations.support.topScrollbarRegion.exists(
+                    images[Images.SupportScrollBarTop],
+                    similarity = scrollSimilarity
+                )
+                val bottomScrollbar = locations.support.bottomScrollbarRegion.exists(
+                    images[Images.SupportScrollBarBottom],
+                    similarity = scrollSimilarity
+                )
+                // Search the whole track — thumb leaves the top pocket after one swipe.
+                val movedScrollbar = locations.support.scrollbarRegion.exists(
+                    images[Images.SupportScrollBarMoved],
+                    similarity = scrollSimilarity
+                )
+                println(
+                    "FGA supportScroll: top=$topScrollbar moved=$movedScrollbar bottom=$bottomScrollbar"
+                )
                 when {
-                    topScrollbar -> SupportSelectionResult.ScrollDown
-                    movedSrollBar && !bottomScrollbar -> SupportSelectionResult.ScrollDown
+                    bottomScrollbar -> SupportSelectionResult.EarlyRefresh
+                    topScrollbar || movedScrollbar -> SupportSelectionResult.ScrollDown
                     else -> SupportSelectionResult.EarlyRefresh
                 }
             }

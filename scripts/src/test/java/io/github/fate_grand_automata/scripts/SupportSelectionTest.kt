@@ -95,4 +95,22 @@ class SupportSelectionTest {
             )
         )
     }
+
+    @Test
+    fun `recommended tab forces All when support class is None`() {
+        assertTrue(
+            testSupportSelection(
+                setup = {
+                    it.state = FakeSupportScreen.State.SomeSupports
+                    it.classBarShifted = true
+                },
+                verify = {
+                    assertThat(it.selectedClass).isEqualTo(SupportClass.All)
+                    assertThat(it.lastXShift).isEqualTo(136)
+                },
+                supportProvider = { SupportSelectionResult.Done },
+                supportClass = SupportClass.None
+            )
+        )
+    }
 }

@@ -33,9 +33,18 @@ class FakeSupportScreen(
         scrollOffset = 0
     }
 
-    override fun click(supportClass: SupportClass) {
+    override fun click(supportClass: SupportClass, xShift: Int) {
         selectedClass = supportClass
+        lastXShift = xShift
     }
+
+    override fun classBarXShift() = if (classBarShifted) 136 else 0
+
+    override fun isClassBarShifted() = classBarShifted
+
+    var classBarShifted = false
+    var lastXShift = 0
+        private set
 
     override fun delay(duration: Duration) {
         exitManager.checkExitRequested()

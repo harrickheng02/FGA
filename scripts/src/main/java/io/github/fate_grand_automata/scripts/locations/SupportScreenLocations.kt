@@ -15,7 +15,11 @@ class SupportScreenLocations @Inject constructor(
 
     val screenCheckRegion = Region(0, 0, 200, 400) + headerOffset
 
-    val extraRegion = Region(1200, 200, 130, 130) + headerOffset
+    /**
+     * Extra (+ Mix when story inserts Recommended). Wide enough for both
+     * farming and story class-bar layouts; used only as a "support UI visible" probe.
+     */
+    val extraRegion = Region(1180, 180, 400, 160) + headerOffset
 
     val updateClick = Location(1865, 260) + headerOffset
 
@@ -66,7 +70,24 @@ class SupportScreenLocations @Inject constructor(
     val listSwipeStart = Location(-59, if (canLongSwipe) 1000 else 1190) + supportOffset
     val listSwipeEnd = Location(-89, if (canLongSwipe) 300 else 660) + supportOffset
 
-    fun locate(supportClass: SupportClass) = when (supportClass) {
+    /**
+     * Horizontal gap between adjacent class icons (All → Saber) in farming layout.
+     * Story Recommended→All gap is often closer to ~117; [RealSupportScreen] measures it.
+     */
+    val classIconSpacing = 136
+
+    /**
+     * First class-filter slot only. Farming: All star. Story: Recommended.
+     * Sized so 720p templates (~40–55px) fit after script→image scale (0.5).
+     */
+    val firstClassIconRegion = Region(100, 170, 170, 170) + headerOffset
+
+    /**
+     * Class icon strip used to measure All's X after Recommended is confirmed.
+     */
+    val classBarRegion = Region(100, 160, 1500, 200) + headerOffset
+
+    fun locate(supportClass: SupportClass, xShift: Int = 0) = when (supportClass) {
         SupportClass.None -> 0
         SupportClass.All -> 184
         SupportClass.Saber -> 320
@@ -78,16 +99,26 @@ class SupportScreenLocations @Inject constructor(
         SupportClass.Berserker -> 1130
         SupportClass.Extra -> 1264
         SupportClass.Mix -> 1402
-    }.let { x -> Location(x, 256) + headerOffset }
+    }.let { x -> Location(x + xShift, 256) + headerOffset }
 
-    val topScrollbarRegion = when(isWide) {
+    val topScrollbarRegion = when (isWide) {
         true -> Region(-255, 325, 140, 55).xFromRight()
         false -> Region(1195, 325, 100, 55).xFromCenter()
     }
 
-    val bottomScrollbarRegion = when(isWide) {
+    val bottomScrollbarRegion = when (isWide) {
         true -> Region(-255, 1390, 140, 55).xFromRight()
         false -> Region(1195, 1390, 100, 55).xFromCenter()
+    }
+
+    /**
+     * Full scrollbar track (top pocket → bottom pocket). Used for
+     * [Images.SupportScrollBarMoved]; searching only [topScrollbarRegion]
+     * false-triggers EarlyRefresh after the first swipe.
+     */
+    val scrollbarRegion = when (isWide) {
+        true -> Region(-255, 325, 140, 1120).xFromRight()
+        false -> Region(1195, 325, 100, 1120).xFromCenter()
     }
 
     val refreshRegion = Region(1770, 195, 175, 165) + headerOffset

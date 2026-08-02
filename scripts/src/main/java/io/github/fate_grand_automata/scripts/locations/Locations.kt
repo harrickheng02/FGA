@@ -45,12 +45,59 @@ class Locations @Inject constructor(
         else Location(-270, 440))
             .xFromRight()
 
+    /**
+     * Story-map area used to find the bouncing "下一个" marker (avoid chrome).
+     * Full script width — right-side nodes (e.g. 华盛顿) sit past x=2200.
+     */
+    val storyMapRegion = Region(0, 60, 2560, 1200)
+
+    /**
+     * Offset from the yellow "下一个" chevron down onto the node icon.
+     */
+    val storyNextClickOffset = Location(0, 120)
+
+    /**
+     * Offset from banner "下一个" chevron into the blue quest info strip.
+     * The strip sits to the right and slightly above the chevron, not below it.
+     */
+    val storyBannerClickOffset = Location(520, -140)
+
+    /**
+     * Alternate banner click if the first offset misses.
+     */
+    val storyBannerClickOffsetAlt = Location(700, -100)
+
+    /**
+     * Ignore chevron matches in the bottom chrome (menu / AP bar).
+     */
+    val storyNextMaxY = 1000
+
+    /**
+     * Top-left "关闭" when a story node detail panel is open.
+     */
+    val storyQuestCloseRegion = Region(0, 0, 280, 120)
+
+    /**
+     * Search area for the generic "confirmation" watermark on two-button dialogs.
+     */
+    val questConfirmDialogRegion = Region(-400, 1000, 800, 280).xFromCenter()
+
+    /**
+     * Second (right-hand) button on a standard two-button confirm dialog.
+     */
+    val questConfirmDialogSecondButtonClick = Location(240, 1100).xFromCenter()
+
     val menuStartQuestClick =
         (if (isWide)
             Location(-350, -160)
         else Location(-160, -90))
             .xFromRight()
             .yFromBottom()
+
+    /**
+     * Top-right title area on the party confirmation ("队伍确认") screen.
+     */
+    val partyConfirmationRegion = Region(900, 20, 400, 120).xFromCenter()
 
     val menuStorySkipYesClick = Location(320, 1100).xFromCenter()
 
