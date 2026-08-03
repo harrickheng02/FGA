@@ -257,22 +257,35 @@ class AutoBattle @Inject constructor(
 
         showRefillsAndRunsMessage()
 
-        // Story map / quest detail panel
-        val storyMarkers = findStoryNextMarkers()
-        if (isStoryQuestDetailOpen() || storyMarkers.isNotEmpty()) {
-            openStoryMapNode(storyMarkers)
-        } else {
-            locations.menuSelectQuestClick.click()
-            afterSelectingQuest()
+        // Story map: 管理室 = map, 关闭 = quest detail. Never free-quest click on story map.
+        val onStoryMap = isOnStoryMap()
+        val onQuestDetail = isStoryQuestDetailOpen()
+        val storyMarkers = findStoryNextMarkers(relaxed = onStoryMap || onQuestDetail)
+        when {
+            onQuestDetail || storyMarkers.isNotEmpty() -> openStoryMapNode(storyMarkers)
+            onStoryMap -> {
+                println("FGA storyNext: on story map but no chevron yet, retry relaxed")
+                val relaxed = findStoryNextMarkers(relaxed = true)
+                if (relaxed.isNotEmpty()) {
+                    openStoryMapNode(relaxed)
+                } else {
+                    // Stay on map; do not click free-quest coordinates.
+                    1.seconds.wait()
+                }
+            }
+            else -> {
+                locations.menuSelectQuestClick.click()
+                afterSelectingQuest()
+            }
         }
     }
 
     /**
      * Match the yellow chevron under "下一个".
-     * High similarity only — low thresholds matched menu chrome and FX sparks.
+     * [relaxed] lowers the bar when 管理室/关闭 already proves we are on the story map.
      */
-    private fun findStoryNextMarkers(): List<Match> {
-        val similarity = 0.75
+    private fun findStoryNextMarkers(relaxed: Boolean = false): List<Match> {
+        val similarity = if (relaxed) 0.60 else 0.70
         val primary = locations.storyMapRegion
             .findAll(images[Images.StoryNext], similarity = similarity)
             .toList()
@@ -281,7 +294,7 @@ class AutoBattle @Inject constructor(
             .toList()
         val merged = mutableListOf<Match>()
         for (m in (primary + alt).sortedByDescending { it.score }) {
-            if (m.region.center.y !in 100..locations.storyNextMaxY) {
+            if (m.region.center.y !in locations.storyNextMinY..locations.storyNextMaxY) {
                 continue
             }
             val near = merged.any {
@@ -295,6 +308,13 @@ class AutoBattle @Inject constructor(
         return merged
     }
 
+    /** Story map with no node selected — top-left "管理室". */
+    private fun isOnStoryMap() =
+        locations.storyQuestCloseRegion.exists(
+            images[Images.StoryMapMyRoom],
+            similarity = 0.7
+        )
+
     /** Story node selected — top-left becomes 关闭 instead of 管理室. */
     private fun isStoryQuestDetailOpen() =
         locations.storyQuestCloseRegion.exists(
@@ -302,24 +322,33 @@ class AutoBattle @Inject constructor(
             similarity = 0.7
         )
 
-    private fun clickStoryQuestBanner(markers: List<Match>, useAlt: Boolean = false) {
-        val arrow = markers.minByOrNull { it.region.center.y }
-            ?: markers.maxByOrNull { it.score }
-
-        val click = if (arrow != null) {
-            // Chevron on left crest → blue strip is to the right / slightly above.
-            val offset = if (useAlt) {
-                locations.storyBannerClickOffsetAlt
-            } else {
-                locations.storyBannerClickOffset
-            }
-            val raw = arrow.region.center + offset
-            Location(raw.x.coerceIn(80, 2480), raw.y.coerceIn(80, 1360))
-        } else if (useAlt) {
-            // No chevron (FX washed it out) — hit the known banner body.
+    private fun clickStoryQuestBanner(markers: List<Match> = emptyList(), useAlt: Boolean = false) {
+        // Fixed strip coords first — arrow-relative with bad offsets was clicking
+        // top-right chrome and dismissing the detail panel back to 管理室.
+        val fixed = if (useAlt) {
             locations.storyQuestBannerClickAlt
         } else {
             locations.storyQuestBannerClick
+        }
+
+        val arrow = markers
+            .filter { it.score >= 0.85 && it.region.center.y in 150..400 }
+            .minByOrNull { it.region.center.y }
+
+        val click = if (useAlt && arrow != null) {
+            val raw = arrow.region.center + locations.storyBannerClickOffsetAlt
+            Location(raw.x.coerceIn(80, 2480), raw.y.coerceIn(120, 900))
+        } else if (!useAlt && arrow != null) {
+            // Only use arrow-relative if it lands inside the strip band.
+            val raw = arrow.region.center + locations.storyBannerClickOffset
+            val candidate = Location(raw.x.coerceIn(80, 2480), raw.y.coerceIn(120, 900))
+            if (candidate.y in 250..500 && candidate.x in 1000..2300) {
+                candidate
+            } else {
+                fixed
+            }
+        } else {
+            fixed
         }
 
         println(
@@ -351,23 +380,48 @@ class AutoBattle @Inject constructor(
                 afterSelectingQuest()
                 return
             }
+            // Still showing 管理室 → never left the map; abort banner wait.
+            if (isOnStoryMap()) {
+                println("FGA storyNext: still on map (管理室) after banner attempt")
+                return
+            }
             0.5.seconds.wait()
             ticks++
             if (ticks in listOf(3, 7, 11) && isStoryQuestDetailOpen()) {
-                clickStoryQuestBanner(findStoryNextMarkers(), useAlt = ticks >= 7)
+                clickStoryQuestBanner(useAlt = ticks >= 7)
             }
         }
         println("FGA storyNext: still on quest detail after banner clicks")
     }
 
+    private fun clickStoryMapNode(marker: Match, offset: Location): Boolean {
+        val nodeClick = marker.region.center + offset
+        println(
+            "FGA storyNext: select node next=${marker.region.center} " +
+                "score=${marker.score} click=$nodeClick offset=$offset"
+        )
+        nodeClick.click()
+        1.2.seconds.wait()
+
+        if (isQuestConfirmDialog()) {
+            confirmQuestDialog()
+            return true
+        }
+        if (isStoryQuestDetailOpen()) {
+            return true
+        }
+        // Detail open replaces 管理室 with 关闭 — treat disappearance as success too.
+        return !isOnStoryMap()
+    }
+
     /**
      * CN story map: select node → quest detail banner → enter quest.
-     * Detail panel keeps a "下一个" chevron; that must open the banner, not re-click the map.
+     * While 管理室 is visible we only retry node clicks — never banner clicks.
      */
     private fun openStoryMapNode(markers: List<Match>) {
         if (isStoryQuestDetailOpen()) {
             println("FGA storyNext: quest detail already open")
-            clickStoryQuestBanner(markers.ifEmpty { findStoryNextMarkers() })
+            clickStoryQuestBanner()
             waitLeaveStoryMap()
             return
         }
@@ -376,34 +430,33 @@ class AutoBattle @Inject constructor(
             return
         }
 
-        // Map mode: strongest chevron → node under it
         val nodeMarker = markers.maxBy { it.score }
-        val nodeClick = nodeMarker.region.center + locations.storyNextClickOffset
-        println(
-            "FGA storyNext: select node next=${nodeMarker.region.center} " +
-                "score=${nodeMarker.score} click=$nodeClick"
-        )
-        nodeClick.click()
-        1.seconds.wait()
+        val offsets = listOf(locations.storyNextClickOffset) + locations.storyNextClickOffsetAlts
+        var opened = false
+        for (offset in offsets) {
+            if (clickStoryMapNode(nodeMarker, offset)) {
+                opened = true
+                break
+            }
+        }
+
+        if (!opened) {
+            println("FGA storyNext: node click did not open detail")
+            return
+        }
 
         if (isQuestConfirmDialog()) {
-            confirmQuestDialog()
             return
         }
 
-        if (isStoryQuestDetailOpen()) {
-            clickStoryQuestBanner(findStoryNextMarkers())
+        if (isStoryQuestDetailOpen() || !isOnStoryMap()) {
+            // Fixed banner click — do not reuse map chevron geometry.
+            clickStoryQuestBanner()
+            0.8.seconds.wait()
+            if (isStoryQuestDetailOpen()) {
+                clickStoryQuestBanner(useAlt = true)
+            }
             waitLeaveStoryMap()
-            return
-        }
-
-        // Banner may have opened without 关闭 detected — try topmost chevron once
-        val after = findStoryNextMarkers()
-        if (after.isNotEmpty()) {
-            clickStoryQuestBanner(after)
-            waitLeaveStoryMap()
-        } else {
-            println("FGA storyNext: node click did not open detail")
         }
     }
 

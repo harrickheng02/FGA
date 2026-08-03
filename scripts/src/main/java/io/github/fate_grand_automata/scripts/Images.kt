@@ -40,6 +40,10 @@ enum class Images(val path: String) {
      */
     StoryQuestClose("story_quest_close.png"),
     /**
+     * Top-left "管理室" on the story map (node not selected yet).
+     */
+    StoryMapMyRoom("story_map_myroom.png"),
+    /**
      * Glowing blue story-map node icon under "下一个".
      */
     StoryNode("story_node.png"),

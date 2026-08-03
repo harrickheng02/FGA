@@ -52,36 +52,46 @@ class Locations @Inject constructor(
     val storyMapRegion = Region(0, 60, 2560, 1200)
 
     /**
-     * Offset from the yellow "下一个" chevron down onto the node icon.
+     * Offset from the yellow "下一个" chevron/text down onto the blue diamond crest.
      */
-    val storyNextClickOffset = Location(0, 120)
+    val storyNextClickOffset = Location(0, 200)
 
     /**
-     * Offset from banner "下一个" chevron into the blue quest info strip.
-     * The strip sits to the right and slightly above the chevron, not below it.
+     * Alternate node offsets if the primary miss.
      */
-    val storyBannerClickOffset = Location(520, -140)
+    val storyNextClickOffsetAlts = listOf(
+        Location(0, 160),
+        Location(0, 240),
+        Location(0, 120)
+    )
 
     /**
-     * Alternate banner click if the first offset misses.
+     * Offset from banner "下一个" (above the blue strip) into the strip body.
+     * Must go right AND down — negative Y hits top chrome and closes the panel.
      */
-    val storyBannerClickOffsetAlt = Location(700, -100)
+    val storyBannerClickOffset = Location(450, 150)
 
     /**
-     * Ignore chevron matches in the bottom chrome (menu / AP bar).
+     * Alternate banner click — further into the quest title row.
      */
+    val storyBannerClickOffsetAlt = Location(300, 120)
+
+    /**
+     * Ignore chevron matches in top chrome (管理室 / title) and bottom bar.
+     */
+    val storyNextMinY = 180
     val storyNextMaxY = 1000
 
     /**
      * Center of the blue story quest info strip (when 关闭 is shown).
-     * Used when the "下一个" chevron is washed out by scene FX.
+     * Measured on CN Camelot detail: banner ≈ script (1854, 370).
      */
-    val storyQuestBannerClick = Location(490, 340).xFromCenter()
+    val storyQuestBannerClick = Location(570, 370).xFromCenter()
 
     /**
-     * Slightly lower/left alternate on the same strip.
+     * Alternate on the same strip (slightly left / higher, near quest title).
      */
-    val storyQuestBannerClickAlt = Location(350, 380).xFromCenter()
+    val storyQuestBannerClickAlt = Location(400, 300).xFromCenter()
 
     /**
      * Top-left "关闭" when a story node detail panel is open.
