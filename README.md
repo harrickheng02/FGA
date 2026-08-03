@@ -6,6 +6,8 @@
 
 Auto-battle app for FGO (Android 7 or later, no need for root on phones).
 
+> **本 Fork 说明（中文）：** 见 [README.zh-CN.md](README.zh-CN.md) — 面向国服主线剧情推进的改动说明。当前主要在**国服**验证，其他服尚未适配。
+
 Download from our [website](https://fate-grand-automata.github.io)
 
 This is a **Kotlin** port of [FGO-Lua][FGOLua] as an Android app with UI for configuration and without a time-limit on use.  
