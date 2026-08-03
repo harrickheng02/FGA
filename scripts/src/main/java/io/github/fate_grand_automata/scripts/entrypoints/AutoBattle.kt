@@ -177,6 +177,8 @@ class AutoBattle @Inject constructor(
         // if the validator function evaluates to true, the associated action function is called
         val screens: Map<() -> Boolean, () -> Unit> = mapOf(
             { connectionRetry.needsToRetry() } to { connectionRetry.retry() },
+            // Servant/NP status overlay blocks battle.png — close before idle battle.
+            { isBattleExtraInfoOpen() } to { closeBattleExtraInfo() },
             { battle.isIdle() } to {
                 storySkipPossible = false
                 isInBattle = true
@@ -700,6 +702,33 @@ class AutoBattle @Inject constructor(
         isInBattle && locations.npStartedRegion.isBlack()
 
     /**
+     * In-battle servant / NP status overlay (covers Attack and blocks battle.png).
+     * Require both the CN status tab and the diamond X — either alone false-positives
+     * on the normal command screen and interrupts Attack.
+     */
+    private fun isBattleExtraInfoOpen(): Boolean {
+        val hasStatus = locations.battle.battleServantStatusRegion.exists(
+            images[Images.BattleServantStatus],
+            similarity = 0.85
+        )
+        val hasClose = locations.battle.battleWindowCloseRegion.exists(
+            images[Images.BattleWindowClose],
+            similarity = 0.85
+        )
+        return hasStatus && hasClose
+    }
+
+    private fun closeBattleExtraInfo() {
+        println("FGA battle: close servant/NP status overlay")
+        locations.battle.battleWindowCloseClick.click()
+        0.3.seconds.wait()
+        // Legacy off-panel dismiss if the diamond X missed.
+        if (isBattleExtraInfoOpen()) {
+            locations.battle.extraInfoWindowCloseClick.click()
+        }
+    }
+
+    /**
      * Taps in the center a few times to trigger NP skip in BetterFGO.
      */
     private fun skipNp() {
@@ -716,9 +745,7 @@ class AutoBattle @Inject constructor(
      * 2. A boost item is selected if [IPreferences.boostItemSelectionMode] is set (needed in some events)
      * 3. The story is skipped if [IPreferences.storySkip] is activated
      */
-    private
-
-    fun startQuest() {
+    private fun startQuest() {
         partySelection.selectParty()
 
         locations.menuStartQuestClick.click()

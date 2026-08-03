@@ -94,6 +94,22 @@ class BattleScreenLocations @Inject constructor(
     val skillOkClick = Location(400, 850).xFromCenter()
     val orderChangeOkClick = Location(0, 1260).xFromCenter()
     val extraInfoWindowCloseClick = Location(-300, 940).xFromRight()
+
+    /**
+     * Diamond X on the in-battle servant / NP status overlay (top-right of panel).
+     */
+    val battleWindowCloseClick = Location(-400, 100).xFromRight()
+
+    /**
+     * Search region for [Images.BattleWindowClose].
+     */
+    val battleWindowCloseRegion = Region(-520, 40, 280, 160).xFromRight()
+
+    /**
+     * Search region for CN/TW "状态数值" tab.
+     */
+    val battleServantStatusRegion = Region(380, 60, 400, 140)
+
     val skillUseRegion = Region(-210, 320, 420, 85).xFromCenter()
 
     fun servantOpenDetailsClick(slot: FieldSlot) =

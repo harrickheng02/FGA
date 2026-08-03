@@ -12,6 +12,7 @@ import io.github.lib_automata.Pattern
 import io.github.lib_automata.dagger.ScriptScope
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @ScriptScope
 class ServantTracker @Inject constructor(
@@ -110,7 +111,9 @@ class ServantTracker @Inject constructor(
 
         val image = locations.battle.servantDetailsFaceCardRegion.getPattern("Face $teamSlot")
 
-        // Close dialog
+        // Close dialog (diamond X; fallback to legacy off-panel click)
+        locations.battle.battleWindowCloseClick.click()
+        0.2.seconds.wait()
         locations.battle.extraInfoWindowCloseClick.click()
 
         faceCardImages.getOrPut(teamSlot) { mutableListOf() }

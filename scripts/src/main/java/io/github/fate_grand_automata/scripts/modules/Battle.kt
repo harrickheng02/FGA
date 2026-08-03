@@ -55,13 +55,28 @@ class Battle @Inject constructor(
     fun isIdle() = images[Images.BattleScreen] in locations.battle.screenCheckRegion
 
     fun clickAttack(): List<ParsedCard> {
+        repeat(3) { attempt ->
+            locations.battle.attackClick.click()
+
+            val vanished = locations.battle.screenCheckRegion.waitVanish(
+                images[Images.BattleScreen],
+                3.seconds
+            )
+
+            // Only read cards after Attack UI is gone — otherwise BQA match
+            // hits the skill bar and every card becomes Unknown (toast spam).
+            if (vanished || images[Images.BattleScreen] !in locations.battle.screenCheckRegion) {
+                prefs.waitBeforeCards.wait()
+                return card.readCommandCards()
+            }
+
+            println("FGA battle: Attack click did not open cards (attempt ${attempt + 1})")
+            0.4.seconds.wait()
+        }
+
         locations.battle.attackClick.click()
-
-        // Wait for Attack button to disappear
         locations.battle.screenCheckRegion.waitVanish(images[Images.BattleScreen], 5.seconds)
-
         prefs.waitBeforeCards.wait()
-
         return card.readCommandCards()
     }
 

@@ -2,6 +2,14 @@ package io.github.fate_grand_automata.scripts
 
 enum class Images(val path: String) {
     BattleScreen("battle.png"),
+    /**
+     * Diamond X that closes servant / NP detail overlays during battle.
+     */
+    BattleWindowClose("battle_window_close.png"),
+    /**
+     * CN/TW "状态数值" tab on the in-battle servant status window.
+     */
+    BattleServantStatus("battle_servant_status.png"),
     ServantExist("servant_exist.png"),
     TargetDanger("target_danger.png"),
     TargetServant("target_servant.png"),
