@@ -54,10 +54,19 @@ android {
             keyPassword = "123abc"
         }
         create("release") {
-            storeFile = file("fgautomata.keystore")
-            storePassword = System.getenv("KEYSTORE_PASS")
-            keyAlias = "fgautomata"
-            keyPassword = System.getenv("KEYSTORE_PASS")
+            val keystorePass = System.getenv("KEYSTORE_PASS")
+            if (keystorePass.isNullOrBlank()) {
+                // Fork / local release builds without Play signing secrets.
+                storeFile = file("fgadebug.keystore")
+                storePassword = "123abc"
+                keyAlias = "fgadebug"
+                keyPassword = "123abc"
+            } else {
+                storeFile = file("fgautomata.keystore")
+                storePassword = keystorePass
+                keyAlias = "fgautomata"
+                keyPassword = keystorePass
+            }
         }
     }
 
